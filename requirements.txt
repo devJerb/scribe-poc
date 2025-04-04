@@ -1,0 +1,15 @@
+# Frontend
+streamlit
+
+# LLM
+langchain-community
+langchain
+openai
+
+# Utility
+pypdf
+tiktoken
+python-dotenv
+
+# Vector database
+chromadb
