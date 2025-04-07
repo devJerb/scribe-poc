@@ -2,9 +2,10 @@
 streamlit
 
 # LLM
+langchain-google-genai
+google-generativeai
 langchain-community
 langchain
-openai
 
 # Utility
 pypdf
