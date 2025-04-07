@@ -14,3 +14,4 @@ python-dotenv
 
 # Vector database
 chromadb
+pysqlite3-binary
