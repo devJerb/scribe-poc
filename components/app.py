@@ -1,7 +1,26 @@
+import os
+import json
+import tempfile
 import streamlit as st
-from document import DocumentProcessor
 from chat import RAGChat
+from document import DocumentProcessor
 
+# Access the credentials
+if "google_credentials" in st.secrets:
+    # You can access individual fields
+    api_key = st.secrets.get("google_api_key", "")
+    os.environ["GOOGLE_API_KEY"] = api_key
+    
+    # Or write the full credentials to a temporary file if needed
+    credentials = st.secrets["google_credentials"]
+    # Convert AttrDict to a regular dict before JSON serialization
+    credentials_dict = dict(credentials)
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        json.dump(credentials_dict, f)
+        credentials_path = f.name
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+
+# Rest of your app code remains the same
 # Page config
 st.set_page_config(page_title="RAG Chatbot", page_icon="🤖")
 st.title("📚 RAG Chatbot with LangChain")
@@ -27,7 +46,7 @@ for message in st.session_state.messages:
 # Sidebar for configuration and document management
 with st.sidebar:
     st.header("Configuration")
-    openai_api_key = st.text_input("OpenAI API Key", type="password")
+    google_api_key = st.text_input("Google API Key", type="password")
     
     st.header("Document Upload")
     uploaded_files = st.file_uploader("Upload documents", accept_multiple_files=True, type=["txt", "pdf", "docx"])
@@ -59,8 +78,8 @@ with st.sidebar:
         if st.button("Update RAG with Selected Documents"):
             if not st.session_state.selected_docs:
                 st.error("Please select at least one document")
-            elif not openai_api_key:
-                st.error("Please enter your OpenAI API key")
+            elif not google_api_key:
+                st.error("Please enter your Google API key")
             else:
                 with st.spinner("Updating RAG with selected documents..."):
                     # Collect texts from selected documents
@@ -69,7 +88,7 @@ with st.sidebar:
                         all_texts.extend(st.session_state.processed_docs[doc_name])
                     
                     # Create/update vector store
-                    success = doc_processor.update_vector_store(all_texts, openai_api_key)
+                    success = doc_processor.update_vector_store(all_texts, google_api_key)
                     if success:
                         st.session_state.db_initialized = True
                         st.success(f"RAG updated with {len(all_texts)} chunks from {len(st.session_state.selected_docs)} documents!")
@@ -86,13 +105,13 @@ if user_input:
     
     # Generate response
     with st.chat_message("assistant"):
-        if not openai_api_key:
-            st.error("Please enter your OpenAI API key in the sidebar.")
+        if not google_api_key:
+            st.error("Please enter your Google API key in the sidebar.")
         elif not st.session_state.db_initialized:
             st.error("Please select and update RAG with documents first.")
         else:
             with st.spinner("Thinking..."):
-                rag_chat = RAGChat(openai_api_key)
+                rag_chat = RAGChat(google_api_key)
                 response = rag_chat.get_response(user_input)
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})

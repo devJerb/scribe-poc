@@ -1,23 +1,26 @@
 import os
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA
-from langchain_community.chat_models import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 
 class RAGChat:
-    def __init__(self, openai_api_key):
+    def __init__(self, google_api_key):
         self.directory = "./documents"
-        self.openai_api_key = openai_api_key
-        os.environ["OPENAI_API_KEY"] = openai_api_key
+        self.google_api_key = google_api_key
+        os.environ["GOOGLE_API_KEY"] = google_api_key
     
     def create_rag_chain(self):
         """Create RAG chain with retrieval and LLM"""
-        if not self.openai_api_key:
+        if not self.google_api_key:
             return None
         
-        # Create embeddings
-        embeddings = OpenAIEmbeddings()
+        # Create embeddings - use GoogleGenerativeAIEmbeddings instead of GooglePalmEmbeddings
+        embeddings = GoogleGenerativeAIEmbeddings(
+            google_api_key=self.google_api_key,
+            model="models/embedding-001"
+        )
         
         # Load the vector store
         if not os.path.exists(f"{self.directory}/chroma_db"):
@@ -45,7 +48,7 @@ class RAGChat:
         )
         
         # Initialize the LLM
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0, openai_api_key=self.openai_api_key)
+        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=1, google_api_key=self.google_api_key)
         
         # Create the chain
         chain = RetrievalQA.from_chain_type(

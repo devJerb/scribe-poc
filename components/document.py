@@ -1,8 +1,10 @@
 import os
 import shutil
+import time
+import random
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
 
 class DocumentProcessor:
@@ -52,19 +54,52 @@ class DocumentProcessor:
                 os.remove(file_path)
             raise Exception(f"Error processing {file.name}: {str(e)}")
     
-    def update_vector_store(self, texts, openai_api_key):
+    def update_vector_store(self, texts, google_api_key):
         """Create or update vector store with provided texts"""
         if not texts:
             return False
             
-        embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+        embeddings = GoogleGenerativeAIEmbeddings(
+            google_api_key=google_api_key,
+            model="models/embedding-001"  # Use the standard embedding model
+        )
         
         # Clear existing database if it exists
         if os.path.exists(f"{self.directory}/chroma_db"):
             shutil.rmtree(f"{self.directory}/chroma_db")
         
         # Create new database
-        db = Chroma.from_documents(texts, embeddings, persist_directory=f"{self.directory}/chroma_db")
-        db.persist()
+        db = Chroma(persist_directory=f"{self.directory}/chroma_db", embedding_function=embeddings)
         
+        # Process in smaller batches with retry logic
+        batch_size = 10  # Adjust this based on your quota limits
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            success = False
+            retries = 0
+            max_retries = 5
+            
+            while not success and retries < max_retries:
+                try:
+                    db.add_documents(batch)
+                    success = True
+                    print(f"Successfully processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
+                except Exception as e:
+                    retries += 1
+                    if "429" in str(e) or "Resource has been exhausted" in str(e):
+                        # Calculate exponential backoff time
+                        wait_time = (2 ** retries) + random.uniform(0, 1)
+                        print(f"Rate limit hit. Retrying in {wait_time:.2f} seconds... (Attempt {retries}/{max_retries})")
+                        time.sleep(wait_time)
+                    else:
+                        # If it's not a rate limit error, re-raise
+                        raise e
+            
+            if not success:
+                raise Exception(f"Failed to process batch after {max_retries} retries")
+            
+            # Add a small delay between successful batches
+            time.sleep(1)
+        
+        db.persist()
         return True
