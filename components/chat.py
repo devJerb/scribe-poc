@@ -1,6 +1,6 @@
 import os
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA, LLMChain
 from langchain.prompts import PromptTemplate
 

@@ -61,10 +61,9 @@ with st.sidebar:
     st.header("Configuration")
     google_api_key = st.text_input("Google API Key", type="password")
     
-    if google_api_key:
-        if st.button("Set API Key") or st.session_state.api_key_set:
-            st.session_state.api_key_set = True
-            st.success("API Key set! You can now chat with or without documents.")
+    if st.button("Set API Key") or st.session_state.api_key_set:
+        st.session_state.api_key_set = True
+        st.success("API Key set! You can now chat with or without documents.")
     
     st.header("Document Upload")
     uploaded_files = st.file_uploader("Upload documents", accept_multiple_files=True, type=["txt", "pdf", "docx"])
