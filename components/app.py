@@ -9,6 +9,7 @@ import tempfile
 import streamlit as st
 from chat import RAGChat
 from document import DocumentProcessor
+from constant import DIRECTORY as directory
 
 # Access the credentials
 if "google_credentials" in st.secrets:
@@ -26,8 +27,8 @@ if "google_credentials" in st.secrets:
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
 
 # Page config
-st.set_page_config(page_title="RAG Chatbot", page_icon="🤖")
-st.title("📚 RAG Chatbot with LangChain")
+st.set_page_config(page_title="Scribe | RAG + Chat", page_icon="🤖")
+st.title("📚 Scribe - Chat with Documents") 
 
 # Initialize session state
 if "messages" not in st.session_state:

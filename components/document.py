@@ -1,16 +1,17 @@
 import os
-import shutil
 import time
+import shutil
 import random
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
+from constant import DIRECTORY as directory
 
 class DocumentProcessor:
     def __init__(self):
         # Create necessary directories
-        self.directory = "./documents"
+        self.directory = directory
         os.makedirs(f"{self.directory}/temp_docs", exist_ok=True)
         os.makedirs(f"{self.directory}/processed_docs", exist_ok=True)
         
@@ -59,47 +60,103 @@ class DocumentProcessor:
         if not texts:
             return False
             
+        # Fix permissions on the directory first
+        chroma_dir = f"{self.directory}/chroma_db"
+        
+        # Ensure directory exists with proper permissions
+        if not os.path.exists(chroma_dir):
+            os.makedirs(chroma_dir, mode=0o755)
+        else:
+            # Fix permissions on existing directory
+            os.chmod(chroma_dir, 0o755)
+            
+            # Fix permissions on all files in the directory
+            for root, dirs, files in os.walk(chroma_dir):
+                for dir in dirs:
+                    os.chmod(os.path.join(root, dir), 0o755)
+                for file in files:
+                    os.chmod(os.path.join(root, file), 0o644)
+        
         embeddings = GoogleGenerativeAIEmbeddings(
             google_api_key=google_api_key,
-            model="models/embedding-001"  # Use the standard embedding model
+            model="models/embedding-001"
         )
         
-        # Clear existing database if it exists
-        if os.path.exists(f"{self.directory}/chroma_db"):
-            shutil.rmtree(f"{self.directory}/chroma_db")
-        
-        # Create new database
-        db = Chroma(persist_directory=f"{self.directory}/chroma_db", embedding_function=embeddings)
-        
-        # Process in smaller batches with retry logic
-        batch_size = 10  # Adjust this based on your quota limits
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i:i+batch_size]
-            success = False
-            retries = 0
-            max_retries = 5
+        try:
+            # Try to open existing DB first
+            db = Chroma(persist_directory=chroma_dir, embedding_function=embeddings)
             
-            while not success and retries < max_retries:
-                try:
-                    db.add_documents(batch)
-                    success = True
-                    print(f"Successfully processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
-                except Exception as e:
-                    retries += 1
-                    if "429" in str(e) or "Resource has been exhausted" in str(e):
-                        # Calculate exponential backoff time
-                        wait_time = (2 ** retries) + random.uniform(0, 1)
-                        print(f"Rate limit hit. Retrying in {wait_time:.2f} seconds... (Attempt {retries}/{max_retries})")
-                        time.sleep(wait_time)
-                    else:
-                        # If it's not a rate limit error, re-raise
-                        raise e
+            # Process in smaller batches with retry logic
+            batch_size = 10  # Adjust based on your quota limits
             
-            if not success:
-                raise Exception(f"Failed to process batch after {max_retries} retries")
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i+batch_size]
+                success = False
+                retries = 0
+                max_retries = 5
+                
+                while not success and retries < max_retries:
+                    try:
+                        db.add_documents(batch)
+                        success = True
+                        print(f"Successfully processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
+                    except Exception as e:
+                        retries += 1
+                        if "429" in str(e) or "Resource has been exhausted" in str(e):
+                            # Calculate exponential backoff time
+                            wait_time = (2 ** retries) + random.uniform(0, 1)
+                            print(f"Rate limit hit. Retrying in {wait_time:.2f} seconds... (Attempt {retries}/{max_retries})")
+                            time.sleep(wait_time)
+                        else:
+                            # If it's not a rate limit error, raise to outer exception handler
+                            raise e
+                
+                if not success:
+                    raise Exception(f"Failed to process batch after {max_retries} retries")
+                
+                # Add a small delay between successful batches
+                time.sleep(1)
+                
+        except Exception as e:
+            print(f"Error updating existing DB: {e}")
+            # If that fails, create new DB
+            if os.path.exists(chroma_dir):
+                shutil.rmtree(chroma_dir)
+                
+            # Create new database with batch processing for new DB creation
+            db = Chroma(persist_directory=chroma_dir, embedding_function=embeddings)
             
-            # Add a small delay between successful batches
-            time.sleep(1)
+            # Process in smaller batches with retry logic
+            batch_size = 10  # Adjust based on your quota limits
+            
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i+batch_size]
+                success = False
+                retries = 0
+                max_retries = 5
+                
+                while not success and retries < max_retries:
+                    try:
+                        db.add_documents(batch)
+                        success = True
+                        print(f"Successfully processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
+                    except Exception as e:
+                        retries += 1
+                        if "429" in str(e) or "Resource has been exhausted" in str(e):
+                            # Calculate exponential backoff time
+                            wait_time = (2 ** retries) + random.uniform(0, 1)
+                            print(f"Rate limit hit. Retrying in {wait_time:.2f} seconds... (Attempt {retries}/{max_retries})")
+                            time.sleep(wait_time)
+                        else:
+                            # If it's not a rate limit error, re-raise
+                            raise e
+                
+                if not success:
+                    raise Exception(f"Failed to process batch after {max_retries} retries")
+                
+                # Add a small delay between successful batches
+                time.sleep(1)
         
+        # Make sure to persist at the end
         db.persist()
         return True
