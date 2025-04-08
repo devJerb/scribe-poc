@@ -20,7 +20,6 @@ if "google_credentials" in st.secrets:
         credentials_path = f.name
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
 
-# Rest of your app code remains the same
 # Page config
 st.set_page_config(page_title="RAG Chatbot", page_icon="🤖")
 st.title("📚 RAG Chatbot with LangChain")
@@ -34,9 +33,18 @@ if "processed_docs" not in st.session_state:
     st.session_state.processed_docs = {}
 if "db_initialized" not in st.session_state:
     st.session_state.db_initialized = False
+if "api_key_set" not in st.session_state:
+    st.session_state.api_key_set = False
 
 # Initialize document processor
 doc_processor = DocumentProcessor()
+
+# Display welcome message if first time
+if not st.session_state.messages:
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": "👋 Hi there! I'm your AI assistant. You can chat with me normally, or upload documents to enable RAG capabilities. How can I help you today?"
+    })
 
 # Display chat history
 for message in st.session_state.messages:
@@ -48,19 +56,27 @@ with st.sidebar:
     st.header("Configuration")
     google_api_key = st.text_input("Google API Key", type="password")
     
+    if google_api_key:
+        if st.button("Set API Key") or st.session_state.api_key_set:
+            st.session_state.api_key_set = True
+            st.success("API Key set! You can now chat with or without documents.")
+    
     st.header("Document Upload")
     uploaded_files = st.file_uploader("Upload documents", accept_multiple_files=True, type=["txt", "pdf", "docx"])
     
     if uploaded_files:
         if st.button("Process New Documents"):
-            with st.spinner("Processing documents..."):
-                for file in uploaded_files:
-                    if file.name not in st.session_state.document_list:
-                        texts = doc_processor.process_document(file)
-                        st.session_state.processed_docs[file.name] = texts
+            if not google_api_key:
+                st.error("Please enter your Google API key first")
+            else:
+                with st.spinner("Processing documents..."):
+                    for file in uploaded_files:
                         if file.name not in st.session_state.document_list:
-                            st.session_state.document_list.append(file.name)
-                st.success(f"Processed {len(uploaded_files)} new documents!")
+                            texts = doc_processor.process_document(file)
+                            st.session_state.processed_docs[file.name] = texts
+                            if file.name not in st.session_state.document_list:
+                                st.session_state.document_list.append(file.name)
+                    st.success(f"Processed {len(uploaded_files)} new documents!")
     
     # List and select documents
     if st.session_state.document_list:
@@ -96,7 +112,7 @@ with st.sidebar:
                         st.error("Failed to update vector store")
 
 # Chat interface
-user_input = st.chat_input("Ask a question about your documents")
+user_input = st.chat_input("Ask me anything...")
 if user_input:
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -107,8 +123,6 @@ if user_input:
     with st.chat_message("assistant"):
         if not google_api_key:
             st.error("Please enter your Google API key in the sidebar.")
-        elif not st.session_state.db_initialized:
-            st.error("Please select and update RAG with documents first.")
         else:
             with st.spinner("Thinking..."):
                 rag_chat = RAGChat(google_api_key)
@@ -117,5 +131,7 @@ if user_input:
                 st.session_state.messages.append({"role": "assistant", "content": response})
 
 # Show current RAG status
-if hasattr(st.session_state, 'selected_docs') and st.session_state.selected_docs:
-    st.info(f"Current RAG includes {len(st.session_state.selected_docs)} documents: {', '.join(st.session_state.selected_docs)}")
+if st.session_state.db_initialized and hasattr(st.session_state, 'selected_docs') and st.session_state.selected_docs:
+    st.info(f"RAG enabled with {len(st.session_state.selected_docs)} documents: {', '.join(st.session_state.selected_docs)}")
+elif st.session_state.api_key_set:
+    st.info("Chatting in general mode. Upload documents to enable RAG capabilities.")
