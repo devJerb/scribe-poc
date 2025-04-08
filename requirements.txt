@@ -13,5 +13,5 @@ tiktoken
 python-dotenv
 
 # Vector database
-chromadb
+langchain-chroma
 pysqlite3-binary
