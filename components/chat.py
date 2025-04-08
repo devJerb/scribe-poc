@@ -3,10 +3,11 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA, LLMChain
 from langchain.prompts import PromptTemplate
+from constant import DIRECTORY as directory
 
 class RAGChat:
     def __init__(self, google_api_key):
-        self.directory = "./documents"
+        self.directory = directory
         self.google_api_key = google_api_key
         os.environ["GOOGLE_API_KEY"] = google_api_key
         # Initialize the LLM for direct conversation
