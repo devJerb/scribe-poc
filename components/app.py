@@ -67,7 +67,11 @@ with st.sidebar:
         st.success("API Key set! You can now chat with or without documents.")
     
     st.header("Document Upload")
-    uploaded_files = st.file_uploader("Upload documents", accept_multiple_files=True, type=["txt", "pdf", "docx"])
+    uploaded_files = st.file_uploader(
+        "Upload documents", 
+        accept_multiple_files=True, 
+        type=["txt", "pdf", "docx", "doc"]
+    )
     
     if uploaded_files:
         if st.button("Process New Documents"):

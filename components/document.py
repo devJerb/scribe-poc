@@ -2,7 +2,7 @@ import os
 import time
 import shutil
 import random
-from langchain_community.document_loaders import TextLoader, PyPDFLoader
+from langchain_community.document_loaders import TextLoader, PyPDFLoader, Docx2txtLoader, UnstructuredWordDocumentLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -30,6 +30,11 @@ class DocumentProcessor:
                 loader = PyPDFLoader(file_path)
             elif file_extension == '.txt':
                 loader = TextLoader(file_path)
+            elif file_extension == '.docx':
+                loader = Docx2txtLoader(file_path)
+            elif file_extension == '.doc':
+                # For older .doc format, use UnstructuredWordDocumentLoader
+                loader = UnstructuredWordDocumentLoader(file_path)
             else:
                 # Default to text loader for other types
                 loader = TextLoader(file_path)
