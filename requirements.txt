@@ -7,11 +7,17 @@ google-generativeai
 langchain-community
 langchain
 
-# Utility
+# Document Processing
 pypdf
 tiktoken
 python-dotenv
+python-docx
+docx2txt
+unstructured[doc]
 
 # Vector database
 chromadb
 pysqlite3-binary
+
+# System utilities
+pillow
