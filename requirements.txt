@@ -14,3 +14,4 @@ python-dotenv
 
 # Vector database
 langchain-chroma
+pysqlite3-binary
