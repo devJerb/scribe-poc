@@ -107,4 +107,4 @@ class RAGChat:
                 response = self.llm.invoke(f"User question: {question}\n\nProvide a helpful response:")
                 return response.content
             except:
-                return f"I'm having trouble processing your request. Please check your API key or try asking a different question."
+                return f"I'm having trouble processing your request. Please check your API key."
